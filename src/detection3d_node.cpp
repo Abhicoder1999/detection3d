@@ -44,6 +44,9 @@ void cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
     // Perform RANSAC floor and obstacle detection
     std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> pair_cloud = myRansacPlane(cloud_roi, 150, 0.15);
 
+    // Clustering
+     std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters = Clustering(pair_cloud.first, 0.5, 50, 500);
+    
     // Visualization
     if (!viewer->wasStopped())
     {
@@ -54,7 +57,7 @@ void cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
         viewer->spinOnce();
     }
 
-
+    
     // Convert to ROS data type
     pcl::toROSMsg(*pair_cloud.first, *obstacle_cloud);
     pcl::toROSMsg(*pair_cloud.second, *road_cloud);
