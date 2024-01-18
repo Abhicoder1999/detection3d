@@ -44,6 +44,16 @@ struct Color
 	}
 };
 
+struct Box
+{
+	float x_min;
+	float y_min;
+	float z_min;
+	float x_max;
+	float y_max;
+	float z_max;
+};
+
 std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> myRansacPlane(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, int maxIterations, float distanceThreshold)
 {
 	// My implementation of RANSAC for segmenting planes.
@@ -133,7 +143,7 @@ std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> Clustering(pcl::PointCloud<pcl
 {
 
 	// Time clustering process
-	// auto startTime = std::chrono::steady_clock::now();
+	auto startTime = std::chrono::steady_clock::now();
 
 	// TODO:: Fill in the function to perform euclidean clustering to group detected obstacles
 	std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> clusters;
@@ -163,11 +173,50 @@ std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> Clustering(pcl::PointCloud<pcl
 		clusters.push_back(cloud_cluster);
 	}
 
-	// auto endTime = std::chrono::steady_clock::now();
-	// auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-	// std::cout << "clustering took " << elapsedTime.count() << " milliseconds and found " << clusters.size() << " clusters" << std::endl;
+	auto endTime = std::chrono::steady_clock::now();
+	auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+	std::cout << "clustering took " << elapsedTime.count() << " milliseconds and found " << clusters.size() << " clusters" << std::endl;
 
 	return clusters;
+}
+
+
+Box BoundingBox(pcl::PointCloud<pcl::PointXYZI>::Ptr cluster)
+{
+
+    // Find bounding box for one of the clusters
+    pcl::PointXYZI minPoint, maxPoint;
+    pcl::getMinMax3D(*cluster, minPoint, maxPoint);
+
+    Box box;
+    box.x_min = minPoint.x;
+    box.y_min = minPoint.y;
+    box.z_min = minPoint.z;
+    box.x_max = maxPoint.x;
+    box.y_max = maxPoint.y;
+    box.z_max = maxPoint.z;
+
+    return box;
+}
+
+void renderBox(pcl::visualization::PCLVisualizer::Ptr& viewer, Box box, int id, Color color, float opacity)
+{
+	if(opacity > 1.0)
+		opacity = 1.0;
+	if(opacity < 0.0)
+		opacity = 0.0;
+	
+	std::string cube = "box"+std::to_string(id);
+    viewer->addCube(box.x_min, box.x_max, box.y_min, box.y_max, box.z_min, box.z_max, color.r, color.g, color.b, cube);
+    viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, cube); 
+    viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, color.r, color.g, color.b, cube);
+    viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, opacity, cube);
+    
+    std::string cubeFill = "boxFill"+std::to_string(id);
+    viewer->addCube(box.x_min, box.x_max, box.y_min, box.y_max, box.z_min, box.z_max, color.r, color.g, color.b, cubeFill);
+    viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_SURFACE, cubeFill); 
+    viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, color.r, color.g, color.b, cubeFill);
+    viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, opacity*0.3, cubeFill);
 }
 
 void renderPointCloud(pcl::visualization::PCLVisualizer::Ptr &viewer, const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud, std::string name, Color color)
