@@ -31,7 +31,23 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/extract_indices.h>
 
+
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/cloud_viewer.h>
+
 using namespace std;
+double ground_clearance = 0.04;
+
+
+struct Color
+{
+
+	float r, g, b;
+
+	Color(float setR, float setG, float setB)
+		: r(setR), g(setG), b(setB)
+	{}
+};
 
 
 std::pair< pcl::PointCloud<pcl::PointXYZI>::Ptr,  pcl::PointCloud<pcl::PointXYZI>::Ptr> myRansacPlane( pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, int maxIterations, float distanceThreshold)
@@ -116,4 +132,14 @@ std::pair< pcl::PointCloud<pcl::PointXYZI>::Ptr,  pcl::PointCloud<pcl::PointXYZI
 	}
 
     return std::pair< pcl::PointCloud<pcl::PointXYZI>::Ptr,  pcl::PointCloud<pcl::PointXYZI>::Ptr>(cloud_obstacle, cloud_road);
+}
+
+
+void renderPointCloud(pcl::visualization::PCLVisualizer::Ptr& viewer, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, std::string name, Color color)
+{
+
+		// Select color based off input value
+		viewer->addPointCloud<pcl::PointXYZI> (cloud, name);
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, color.r, color.g, color.b, name);
+	    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, name);
 }

@@ -8,6 +8,7 @@ pcl::PCLPointCloud2 cloud_voxel, cloud_roi;
 sensor_msgs::PointCloud2::Ptr obstacle_cloud(new sensor_msgs::PointCloud2);
 sensor_msgs::PointCloud2::Ptr road_cloud(new sensor_msgs::PointCloud2);
 sensor_msgs::PointCloud2::Ptr filt_cloud(new sensor_msgs::PointCloud2);
+pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 
 
 void cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
@@ -20,20 +21,20 @@ void cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
     pcl_conversions::toPCL(*cloud_msg, *cloud);
 
     // Perform the actual filtering
-    //1. Voxel reduction
+    // 1. Voxel reduction
     pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
     sor.setInputCloud(cloudPtr);
     sor.setLeafSize(0.1, 0.1, 0.1);
     sor.filter(cloud_voxel);
 
-    //2. ROI setting based on required area of supervision
+    // 2. ROI setting based on required area of supervision
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_temp(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::fromPCLPointCloud2(cloud_voxel, *cloud_temp);
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_roi(new pcl::PointCloud<pcl::PointXYZI>);
 
     Eigen::Vector4f minPoint(-10, -6, -1, 1);
     Eigen::Vector4f maxPoint(15, 7, 1, 1);
-    
+
     pcl::CropBox<pcl::PointXYZI> region(true);
     region.setMin(minPoint);
     region.setMax(maxPoint);
@@ -41,11 +42,20 @@ void cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
     region.filter(*cloud_roi);
 
     // Perform RANSAC floor and obstacle detection
-    // pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_prep(new pcl::PointCloud<pcl::PointXYZI>);
-    // pcl::fromPCLPointCloud2(cloud_voxel, *cloud_prep);
-    // std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> pair_cloud = myRansacPlane(cloud_prep, 100, 0.2);
+    std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> pair_cloud = myRansacPlane(cloud_roi, 150, 0.15);
 
-    std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> pair_cloud = myRansacPlane(cloud_roi, 100, 0.1);
+    // Visualization
+    if (!viewer->wasStopped())
+    {
+        viewer->removeAllPointClouds();
+        viewer->removeAllShapes();
+        renderPointCloud(viewer, pair_cloud.first, "obstacle_cloud", Color(1, 0, 0));
+        renderPointCloud(viewer, pair_cloud.second, "obstacle_road", Color(0,1,0));
+        viewer->spinOnce();
+    }
+
+
+    // Convert to ROS data type
     pcl::toROSMsg(*pair_cloud.first, *obstacle_cloud);
     pcl::toROSMsg(*pair_cloud.second, *road_cloud);
     pcl::toROSMsg(*cloud_roi, *filt_cloud);
@@ -54,8 +64,6 @@ void cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
     obstacle_cloud->header.frame_id = "os_sensor";
     filt_cloud->header.frame_id = "os_sensor";
 
-    //
-    // Convert to ROS data type
     sensor_msgs::PointCloud2 output;
     pcl_conversions::moveFromPCL(cloud_voxel, output);
 

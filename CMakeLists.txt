@@ -125,7 +125,7 @@ include_directories(
 include
 ${catkin_INCLUDE_DIRS}
 )
-
+link_directories(${PCL_LIBRARY_DIRS})
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/detection3d.cpp
@@ -144,5 +144,6 @@ ${catkin_INCLUDE_DIRS}
 add_executable(${PROJECT_NAME}_node src/detection3d_node.cpp src/pcloudProcessor.cpp)
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME}_node
-   ${catkin_LIBRARIES}
+   ${catkin_LIBRARIES} ${PCL_LIBRARIES}
+   pcl_visualization
  )
