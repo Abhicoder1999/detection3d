@@ -21,7 +21,7 @@ public:
 
     void FilterCloud(PointXYZI::Ptr incloud, PointXYZI::Ptr outcloud, float leafsize);
     void CropCloud(PointXYZI::Ptr incloud, PointXYZI::Ptr outcloud, const Eigen::Vector4f minRange, const Eigen::Vector4f maxRange);
-    // std::pair<PointXYZI::Ptr, PointXYZI::Ptr> myRansacPlane(PointXYZI::Ptr incloud, int maxIterations, float distanceThreshold);
+    std::pair<PointXYZI::Ptr, PointXYZI::Ptr> RansacPlane(PointXYZI::Ptr incloud, int maxIterations, float distanceThreshold);
     void Clustering(PointXYZI::Ptr incloud, std::vector<PointXYZI::Ptr>& clusters, float clusterTolerance, int minSize, int maxSize);
 
 };

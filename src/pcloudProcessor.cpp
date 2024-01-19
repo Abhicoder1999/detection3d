@@ -5,11 +5,11 @@ PcloudProcessor::PcloudProcessor(ros::NodeHandle &nh) : viewer_(new pcl::visuali
     subLidar_ = nh.subscribe<sensor_msgs::PointCloud2>("/os_cloud_node/points", 1, &PcloudProcessor::cloud_cb, this);
     pubObstacleCloud_ = nh.advertise<sensor_msgs::PointCloud2>("/os_cloud_node/obstacle_cloud", 1);
     pubPlaneCloud_ = nh.advertise<sensor_msgs::PointCloud2>("/os_cloud_node/road_cloud", 1);
-    std::cout << "Initialization done\n";
-
+    
     double ground_clearance = 0.04;
     minRange = Eigen::Vector4f(-10, -6, -1, 1);
     maxRange = Eigen::Vector4f(15, 5, 3, 1);
+    ROS_INFO("Initialization done");
 }
 
 PcloudProcessor::~PcloudProcessor()
@@ -33,33 +33,32 @@ void PcloudProcessor::cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg
 
 
     // Perform RANSAC floor and obstacle detection
-    std::pair<PointXYZI::Ptr, PointXYZI::Ptr> pair_cloud = RansacPlane(cloud_roi, 150, 0.15);
+    std::pair<PointXYZI::Ptr, PointXYZI::Ptr> pair_cloud = pcore_.RansacPlane(cloud_roi, 150, 0.15);
 
     // Clustering
-    // std::vector<PointXYZI::Ptr> cloudClusters;
-    // pcore_.Clustering(pair_cloud.first, cloudClusters, 0.3, 50, 5000);
-    // std::cout<<"3\n";
+    std::vector<PointXYZI::Ptr> cloudClusters;
+    pcore_.Clustering(pair_cloud.first, cloudClusters, 0.3, 50, 5000);
+    std::cout<<"3\n";
 
     int clusterID{};
     int cluster_size = 0;
     std::vector<Color> colors{Color(1, 0, 0), Color(1, 0, 1), Color(0, 0, 1)};
 
-    // std::cout<<"size of outobject cloud:"<<pair_cloud.first->points.size()<<"size of outobject road:"<<pair_cloud.second->size()<<std::endl;
+
     viewer_->removeAllPointClouds();
     viewer_->removeAllShapes();
     renderPointCloud(viewer_, pair_cloud.first, "obstacle_cloud", Color(1, 0, 0));
     renderPointCloud(viewer_, pair_cloud.second, "obstacle_road", Color(0, 1, 0));
-
-    // for (PointXYZI::Ptr cluster : cloudClusters)
-    // {
-    //     cluster_size = cluster->points.size();
-    //     std::cout << "cluster size" << cluster_size << std::endl;
-    //     renderPointCloud(viewer_, cluster, "obstacle_cloud" + std::to_string(clusterID), colors[clusterID % 3]);
-    //     Box box = BoundingBox(cluster);
-    //     renderBox(viewer_, box, clusterID, colors[clusterID % 3], 1);
-    //     ++clusterID;
-    //     viewer_->spinOnce(200);
-    // }
+    for (PointXYZI::Ptr cluster : cloudClusters)
+    {
+        cluster_size = cluster->points.size();
+        std::cout << "cluster size" << cluster_size << std::endl;
+        renderPointCloud(viewer_, cluster, "obstacle_cloud" + std::to_string(clusterID), colors[clusterID % 3]);
+        Box box = BoundingBox(cluster);
+        renderBox(viewer_, box, clusterID, colors[clusterID % 3], 1);
+        ++clusterID;
+        viewer_->spinOnce(150);
+    }
 
     // Convert to ROS data type
     sensor_msgs::PointCloud2::Ptr obstacle_cloud(new sensor_msgs::PointCloud2);
@@ -75,93 +74,6 @@ void PcloudProcessor::cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg
     pubObstacleCloud_.publish(obstacle_cloud);
     pubPlaneCloud_.publish(road_cloud);
 }
-
-
-std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> PcloudProcessor::RansacPlane(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, int maxIterations, float distanceThreshold)
-{
-	// My implementation of RANSAC for segmenting planes.
-
-	pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_obstacle(new pcl::PointCloud<pcl::PointXYZI>());
-	pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_road(new pcl::PointCloud<pcl::PointXYZI>());
-
-	// reducing ROI for improvement in road plane finding
-	pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_temp2(new pcl::PointCloud<pcl::PointXYZI>);
-
-	Eigen::Vector4f minPoint(-2, -4, -1, 1);
-	Eigen::Vector4f maxPoint(3, 5, 1, 1);
-
-	pcl::CropBox<pcl::PointXYZI> region(true);
-	region.setMin(minPoint);
-	region.setMax(maxPoint);
-	region.setInputCloud(cloud);
-	region.filter(*cloud_temp2);
-
-	std::unordered_set<int> inliersResult;
-	srand(time(NULL));
-
-	// TODO: Add permenant plane equation and not compute everytime!
-
-	while (maxIterations-- >= 0)
-	{
-		std::unordered_set<int> inliers_set;
-
-		while (inliers_set.size() < 3)
-			inliers_set.insert(rand() % (cloud_temp2->points.size()));
-
-		float x1{}, x2{}, x3{}, y1{}, y2{}, y3{}, z1{}, z2{}, z3{}, a{}, b{}, c{}, d{};
-
-		auto itr = inliers_set.begin();
-		x1 = cloud_temp2->points[*itr].x;
-		y1 = cloud_temp2->points[*itr].y;
-		z1 = cloud_temp2->points[*itr].z;
-		itr++;
-		x2 = cloud_temp2->points[*itr].x;
-		y2 = cloud_temp2->points[*itr].y;
-		z2 = cloud_temp2->points[*itr].z;
-		itr++;
-		x3 = cloud_temp2->points[*itr].x;
-		y3 = cloud_temp2->points[*itr].y;
-		z3 = cloud_temp2->points[*itr].z;
-
-		a = ((y2 - y1) * (z3 - z1)) - ((z2 - z1) * (y3 - y1));
-		b = ((z2 - z1) * (x3 - x1)) - ((x2 - x1) * (z3 - z1));
-		c = ((x2 - x1) * (y3 - y1)) - ((y2 - y1) * (x3 - x1));
-		d = -(a * x1 + b * y1 + c * z1);
-
-		inliers_set.clear();
-
-		for (int i = 0; i < cloud->points.size(); i++)
-		{
-			// if(inliers_set.count(i))
-			// 	continue;
-
-			float x0{}, y0{}, z0{}, dist{};
-			x0 = cloud->points[i].x;
-			y0 = cloud->points[i].y;
-			z0 = cloud->points[i].z;
-
-			dist = fabs((a * x0) + (b * y0) + (c * z0) + d) / sqrt((a * a) + (b * b) + (c * c));
-
-			if (dist <= distanceThreshold)
-				inliers_set.insert(i);
-		}
-
-		if (inliers_set.size() > inliersResult.size())
-			inliersResult = inliers_set;
-	}
-
-	for (int index = 0; index < cloud->points.size(); index++)
-	{
-		pcl::PointXYZI point = cloud->points[index];
-		if (inliersResult.count(index))
-			cloud_road->points.push_back(point);
-		else
-			cloud_obstacle->points.push_back(point);
-	}
-
-	return std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr>(cloud_obstacle, cloud_road);
-}
-
 
 
 Box PcloudProcessor::BoundingBox(PointXYZI::Ptr cluster)

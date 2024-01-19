@@ -70,10 +70,7 @@ class PcloudProcessor
 	Eigen::Vector4f maxRange;
 
 	
-
 	void cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
-	std::pair<PointXYZI::Ptr, PointXYZI::Ptr> RansacPlane(PointXYZI::Ptr cloud, int maxIterations, float distanceThreshold);
-	std::vector<PointXYZI::Ptr> Clustering(PointXYZI::Ptr cloud, float clusterTolerance, int minSize, int maxSize);
 	void renderBox(pcl::visualization::PCLVisualizer::Ptr &viewer, Box box, int id, Color color, float opacity);
 	Box BoundingBox(PointXYZI::Ptr cluster);
 	void renderPointCloud(pcl::visualization::PCLVisualizer::Ptr &viewer, const PointXYZI::Ptr &cloud, std::string name, Color color);
