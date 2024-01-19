@@ -5,10 +5,11 @@ PcloudProcessor::PcloudProcessor(ros::NodeHandle &nh) : viewer_(new pcl::visuali
     subLidar_ = nh.subscribe<sensor_msgs::PointCloud2>("/os_cloud_node/points", 1, &PcloudProcessor::cloud_cb, this);
     pubObstacleCloud_ = nh.advertise<sensor_msgs::PointCloud2>("/os_cloud_node/obstacle_cloud", 1);
     pubPlaneCloud_ = nh.advertise<sensor_msgs::PointCloud2>("/os_cloud_node/road_cloud", 1);
-    
+
     double ground_clearance = 0.04;
     minRange = Eigen::Vector4f(-10, -6, -1, 1);
     maxRange = Eigen::Vector4f(15, 5, 3, 1);
+    bool visualise = true;
     ROS_INFO("Initialization done");
 }
 
@@ -27,37 +28,38 @@ void PcloudProcessor::cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg
     // Preprocessing
     PointXYZI::Ptr cloud_voxel(new PointXYZI);
     pcore_.FilterCloud(cloud, cloud_voxel, 0.1);
-
-    PointXYZI::Ptr cloud_roi(new PointXYZI);
-    pcore_.CropCloud(cloud_voxel, cloud_roi, minRange, maxRange);
-
+    pcore_.CropCloud(cloud_voxel, cloud_voxel, minRange, maxRange);
 
     // Perform RANSAC floor and obstacle detection
-    std::pair<PointXYZI::Ptr, PointXYZI::Ptr> pair_cloud = pcore_.RansacPlane(cloud_roi, 150, 0.15);
+    std::pair<PointXYZI::Ptr, PointXYZI::Ptr> pair_cloud = pcore_.RansacPlane(cloud_voxel, 150, 0.15);
 
     // Clustering
     std::vector<PointXYZI::Ptr> cloudClusters;
     pcore_.Clustering(pair_cloud.first, cloudClusters, 0.3, 50, 5000);
-    std::cout<<"3\n";
 
     int clusterID{};
     int cluster_size = 0;
     std::vector<Color> colors{Color(1, 0, 0), Color(1, 0, 1), Color(0, 0, 1)};
 
+    if (!viewer_->wasStopped() && visualise)
+    {
+        viewer_->removeAllPointClouds();
+        viewer_->removeAllShapes();
+        renderPointCloud(viewer_, pair_cloud.first, "obstacle_cloud", Color(1, 0, 0));
+        renderPointCloud(viewer_, pair_cloud.second, "obstacle_road", Color(0, 1, 0));
+    }
 
-    viewer_->removeAllPointClouds();
-    viewer_->removeAllShapes();
-    renderPointCloud(viewer_, pair_cloud.first, "obstacle_cloud", Color(1, 0, 0));
-    renderPointCloud(viewer_, pair_cloud.second, "obstacle_road", Color(0, 1, 0));
     for (PointXYZI::Ptr cluster : cloudClusters)
     {
-        cluster_size = cluster->points.size();
-        std::cout << "cluster size" << cluster_size << std::endl;
         renderPointCloud(viewer_, cluster, "obstacle_cloud" + std::to_string(clusterID), colors[clusterID % 3]);
         Box box = BoundingBox(cluster);
-        renderBox(viewer_, box, clusterID, colors[clusterID % 3], 1);
         ++clusterID;
-        viewer_->spinOnce(150);
+
+        if (!viewer_->wasStopped() && visualise)
+        {
+            renderBox(viewer_, box, clusterID, colors[clusterID % 3], 1);
+            viewer_->spinOnce(150);
+        }
     }
 
     // Convert to ROS data type
@@ -74,7 +76,6 @@ void PcloudProcessor::cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg
     pubObstacleCloud_.publish(obstacle_cloud);
     pubPlaneCloud_.publish(road_cloud);
 }
-
 
 Box PcloudProcessor::BoundingBox(PointXYZI::Ptr cluster)
 {
