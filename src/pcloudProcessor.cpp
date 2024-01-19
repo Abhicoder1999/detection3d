@@ -80,17 +80,29 @@ void PcloudProcessor::cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg
 Box PcloudProcessor::BoundingBox(PointXYZI::Ptr cluster)
 {
 
-    // Find bounding box for one of the clusters
-    pcl::PointXYZI minPoint, maxPoint;
-    pcl::getMinMax3D(*cluster, minPoint, maxPoint);
+    // Oriented Bounding Box for Object dimension measurements
+    pcl::PointXYZI ObbminPoint, ObbmaxPoint, translation;
+    Eigen::Matrix3f rotation;
+    pcl::MomentOfInertiaEstimation<pcl::PointXYZI> feature_extractor;
+    feature_extractor.setInputCloud(cluster);
+    feature_extractor.compute();
+    feature_extractor.getOBB(ObbminPoint, ObbmaxPoint, translation, rotation);
 
+    // For Axis Aligned Bounding Box for rendering
+    pcl::PointXYZI AabbminPoint, AabbmaxPoint;
+    feature_extractor.getAABB(AabbminPoint, AabbmaxPoint);
     Box box;
-    box.x_min = minPoint.x;
-    box.y_min = minPoint.y;
-    box.z_min = minPoint.z;
-    box.x_max = maxPoint.x;
-    box.y_max = maxPoint.y;
-    box.z_max = maxPoint.z;
+
+    box.x_min = AabbminPoint.x;
+    box.y_min = AabbminPoint.y;
+    box.z_min = AabbminPoint.z;
+    box.x_max = AabbmaxPoint.x;
+    box.y_max = AabbmaxPoint.y;
+    box.z_max = AabbmaxPoint.z;
+
+    box.length = ObbminPoint.x - ObbmaxPoint.x;
+    box.width = ObbminPoint.y - ObbmaxPoint.y;
+    box.height = ObbminPoint.z - ObbmaxPoint.z;
 
     return box;
 }
