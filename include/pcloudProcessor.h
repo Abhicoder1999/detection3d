@@ -43,16 +43,17 @@ class PcloudProcessor
 	pcl::visualization::PCLVisualizer::Ptr viewer_;
 	Pcore pcore_;
 
-	double ground_clearance = 0.04;
-	Eigen::Vector4f minRange;
-	Eigen::Vector4f maxRange;
+	Eigen::Vector4f minROIRange;
+	Eigen::Vector4f maxROIRange;
 	bool visualise;
+	float leafSize;
+	RansacParam ransParam;
+	ClustParam  clustParam;
 
 	
 	void cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
 	void renderBox(pcl::visualization::PCLVisualizer::Ptr &viewer, Box box, int id, Color color, float opacity);
 	Box BoundingBox(PointXYZI::Ptr cluster);
-	Box BoundingBox2(PointXYZI::Ptr cluster);
 	void renderPointCloud(pcl::visualization::PCLVisualizer::Ptr &viewer, const PointXYZI::Ptr &cloud, std::string name, Color color);
 
 

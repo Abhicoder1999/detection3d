@@ -6,10 +6,23 @@ PcloudProcessor::PcloudProcessor(ros::NodeHandle &nh) : viewer_(new pcl::visuali
     pubObstacleCloud_ = nh.advertise<sensor_msgs::PointCloud2>("/os_cloud_node/obstacle_cloud", 1);
     pubPlaneCloud_ = nh.advertise<sensor_msgs::PointCloud2>("/os_cloud_node/road_cloud", 1);
 
-    double ground_clearance = 0.04;
-    minRange = Eigen::Vector4f(-10, -6, -1, 1);
-    maxRange = Eigen::Vector4f(15, 5, 3, 1);
-    bool visualise = true;
+
+    minROIRange = Eigen::Vector4f(-10, -6, -1, 1);
+    maxROIRange = Eigen::Vector4f(15, 5, 3, 1);
+    leafSize = 0.1;
+    visualise = true;
+    ransParam.lidar_height = 0.9;
+    ransParam.ground_clearance = 0.4;
+    ransParam.robot_length = 0.6;
+    ransParam.robot_width = 0.8;
+    ransParam.minRandSearchRange = Eigen::Vector4f(-2, -4, -1, 1);
+    ransParam.maxRandSearchRange = Eigen::Vector4f(3, 5, 1, 1);
+    ransParam.maxIterations = 150;
+    ransParam.distanceThreshold = 0.15;
+    clustParam.clusterTolerance = 0.3;
+    clustParam.minClustersize = 50;
+    clustParam.maxClustersize = 5000;
+
     ROS_INFO("Initialization done");
 }
 
@@ -27,15 +40,17 @@ void PcloudProcessor::cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg
 
     // Preprocessing
     PointXYZI::Ptr cloud_voxel(new PointXYZI);
-    pcore_.FilterCloud(cloud, cloud_voxel, 0.1);
-    pcore_.CropCloud(cloud_voxel, cloud_voxel, minRange, maxRange);
+    pcore_.FilterCloud(cloud, cloud_voxel, leafSize);
+
+    pcore_.CropCloud(cloud_voxel, cloud_voxel, minROIRange, maxROIRange);
 
     // Perform RANSAC floor and obstacle detection
-    std::pair<PointXYZI::Ptr, PointXYZI::Ptr> pair_cloud = pcore_.RansacPlane(cloud_voxel, 150, 0.15);
+    std::pair<PointXYZI::Ptr, PointXYZI::Ptr> pair_cloud = pcore_.RansacPlane(cloud_voxel, this->ransParam);
 
     // Clustering
     std::vector<PointXYZI::Ptr> cloudClusters;
-    pcore_.Clustering(pair_cloud.first, cloudClusters, 0.3, 50, 5000);
+    pcore_.Clustering(pair_cloud.first, cloudClusters, clustParam);
+
 
     int clusterID{};
     int cluster_size = 0;
@@ -51,12 +66,13 @@ void PcloudProcessor::cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg
 
     for (PointXYZI::Ptr cluster : cloudClusters)
     {
-        renderPointCloud(viewer_, cluster, "obstacle_cloud" + std::to_string(clusterID), colors[clusterID % 3]);
+        
         Box box = BoundingBox(cluster);
         ++clusterID;
 
         if (!viewer_->wasStopped() && visualise)
         {
+            renderPointCloud(viewer_, cluster, "obstacle_cloud" + std::to_string(clusterID), colors[clusterID % 3]);
             renderBox(viewer_, box, clusterID, colors[clusterID % 3], 1);
             viewer_->spinOnce(150);
         }

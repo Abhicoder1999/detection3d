@@ -1,10 +1,12 @@
 #include "pcore.h"
 
 Pcore::Pcore()
-{}
+{
+}
 
 Pcore::~Pcore()
-{}
+{
+}
 
 void Pcore::FilterCloud(PointXYZI::Ptr incloud, PointXYZI::Ptr outcloud, float leafsize)
 {
@@ -12,7 +14,6 @@ void Pcore::FilterCloud(PointXYZI::Ptr incloud, PointXYZI::Ptr outcloud, float l
     sor.setInputCloud(incloud);
     sor.setLeafSize(0.1, 0.1, 0.1);
     sor.filter(*outcloud);
-
 }
 
 void Pcore::CropCloud(PointXYZI::Ptr incloud, PointXYZI::Ptr outcloud, const Eigen::Vector4f minRange, const Eigen::Vector4f maxRange)
@@ -22,10 +23,9 @@ void Pcore::CropCloud(PointXYZI::Ptr incloud, PointXYZI::Ptr outcloud, const Eig
     region.setMax(maxRange);
     region.setInputCloud(incloud);
     region.filter(*outcloud);
-
 }
 
-std::pair<PointXYZI::Ptr, PointXYZI::Ptr> Pcore::RansacPlane(PointXYZI::Ptr incloud, int maxIterations, float distanceThreshold)
+std::pair<PointXYZI::Ptr, PointXYZI::Ptr> Pcore::RansacPlane(PointXYZI::Ptr incloud, RansacParam &ransParam)
 {
     // My implementation of RANSAC for segmenting planes.
 
@@ -33,13 +33,11 @@ std::pair<PointXYZI::Ptr, PointXYZI::Ptr> Pcore::RansacPlane(PointXYZI::Ptr incl
     PointXYZI::Ptr cloud_road(new PointXYZI());
 
     // reducing ROI for improvement in road plane finding
-    PointXYZI::Ptr cloud_temp(new PointXYZI);
-    Eigen::Vector4f minPoint(-2, -4, -1, 1);
-    Eigen::Vector4f maxPoint(3, 5, 1, 1);
 
+    PointXYZI::Ptr cloud_temp(new PointXYZI);
     pcl::CropBox<pcl::PointXYZI> region(true);
-    region.setMin(minPoint);
-    region.setMax(maxPoint);
+    region.setMin(ransParam.minRandSearchRange);
+    region.setMax(ransParam.maxRandSearchRange);
     region.setInputCloud(incloud);
     region.filter(*cloud_temp);
 
@@ -47,6 +45,7 @@ std::pair<PointXYZI::Ptr, PointXYZI::Ptr> Pcore::RansacPlane(PointXYZI::Ptr incl
     srand(time(NULL));
 
     // TODO: Add permenant plane equation and not compute everytime!
+    int maxIterations = ransParam.maxIterations;
     while (maxIterations-- >= 0)
     {
         std::unordered_set<int> inliers_set;
@@ -88,7 +87,8 @@ std::pair<PointXYZI::Ptr, PointXYZI::Ptr> Pcore::RansacPlane(PointXYZI::Ptr incl
 
             dist = fabs((a * x0) + (b * y0) + (c * z0) + d) / sqrt((a * a) + (b * b) + (c * c));
 
-            if (dist <= distanceThreshold)
+            // check if point is within threshold or close to ground  or inside robot zone include as Non Object points
+            if (dist <= ransParam.distanceThreshold || z0 < (ransParam.ground_clearance - ransParam.ground_clearance) || (abs(x0) < ransParam.robot_length / 2 && abs(y0) < ransParam.robot_width / 2))
                 inliers_set.insert(i);
         }
 
@@ -109,7 +109,7 @@ std::pair<PointXYZI::Ptr, PointXYZI::Ptr> Pcore::RansacPlane(PointXYZI::Ptr incl
     return std::pair<PointXYZI::Ptr, PointXYZI::Ptr>(cloud_obstacle, cloud_road);
 }
 
-void Pcore::Clustering(PointXYZI::Ptr incloud, std::vector<PointXYZI::Ptr>& clusters, float clusterTolerance, int minSize, int maxSize)
+void Pcore::Clustering(PointXYZI::Ptr incloud, std::vector<PointXYZI::Ptr> &clusters, ClustParam& clustParam)
 {
     // Time clustering process
     auto startTime = std::chrono::steady_clock::now();
@@ -120,9 +120,9 @@ void Pcore::Clustering(PointXYZI::Ptr incloud, std::vector<PointXYZI::Ptr>& clus
 
     std::vector<pcl::PointIndices> cluster_indices;
     pcl::EuclideanClusterExtraction<pcl::PointXYZI> ec;
-    ec.setClusterTolerance(clusterTolerance);
-    ec.setMinClusterSize(minSize);
-    ec.setMaxClusterSize(maxSize);
+    ec.setClusterTolerance(clustParam.clusterTolerance);
+    ec.setMinClusterSize(clustParam.minClustersize);
+    ec.setMaxClusterSize(clustParam.maxClustersize);
     ec.setSearchMethod(tree);
     ec.setInputCloud(incloud);
     ec.extract(cluster_indices);
