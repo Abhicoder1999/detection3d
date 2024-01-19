@@ -1,5 +1,5 @@
 #To visualize segmentation
-visualise: false
+visualise: true
 # Detection Range ROI for Obstacle detction [x,y,z]
 minROIRange: [-10, -6, -1]
 maxROIRange: [15, 5, 3]
