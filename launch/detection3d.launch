@@ -1,0 +1,8 @@
+<launch> 
+
+    <rosparam command="load" file="$(find detection3d)/config/param.yaml" />  
+
+    <node name="detection3d_node" pkg="detection3d" type="detection3d_node" output="screen"> 
+    </node>
+
+</launch>

@@ -76,7 +76,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.03999999910593033
       Style: Flat Squares
-      Topic: /os_cloud_node/output_check1
+      Topic: /os_cloud_node/obstacle_cloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -104,7 +104,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.029999999329447746
       Style: Flat Squares
-      Topic: /os_cloud_node/output_check2
+      Topic: /os_cloud_node/road_cloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true

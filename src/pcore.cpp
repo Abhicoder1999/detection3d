@@ -88,7 +88,7 @@ std::pair<PointXYZI::Ptr, PointXYZI::Ptr> Pcore::RansacPlane(PointXYZI::Ptr incl
             dist = fabs((a * x0) + (b * y0) + (c * z0) + d) / sqrt((a * a) + (b * b) + (c * c));
 
             // check if point is within threshold or close to ground  or inside robot zone include as Non Object points
-            if (dist <= ransParam.distanceThreshold || z0 < (ransParam.ground_clearance - ransParam.ground_clearance) || (abs(x0) < ransParam.robot_length / 2 && abs(y0) < ransParam.robot_width / 2))
+            if (dist <= ransParam.distanceThreshold || z0 < (ransParam.ground_clearance - ransParam.lidar_height) || (abs(x0) < ransParam.robot_length / 2 && abs(y0) < ransParam.robot_width / 2))
                 inliers_set.insert(i);
         }
 

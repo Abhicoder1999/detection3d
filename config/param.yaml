@@ -1,0 +1,22 @@
+#To visualize segmentation
+visualise: false
+# Detection Range ROI for Obstacle detction [x,y,z]
+minROIRange: [-10, -6, -1]
+maxROIRange: [15, 5, 3]
+leafSize: 0.1
+
+# Params for RANSAC segmentation
+ransParam:
+  lidar_height: 0.9 #lidar offset from ground
+  ground_clearance: 0.15 #gloud clearance (z-axis) to NOT Consider as Obstacle
+  robot_length: 1.2 #length (x-axis) to NOT Consider as Obstacle
+  robot_width: 1.6 #width (y-axis)
+  minRandSearchRange: [-2, -4, -1, 1] #mix Range for random point selection
+  maxRandSearchRange: [3, 5, 1, 1] #max Range for random point selection
+  maxIterations: 150 #Max interation to find best plane
+  distanceThreshold: 0.15 #distance of points from plane to be considered as inliners
+
+clustParam:
+  clusterTolerance: 0.3  #More the tolerance larger the cluster
+  minClustersize: 50   #min points in cluster
+  maxClustersize: 5000 #max points in cluster

@@ -6,23 +6,28 @@ PcloudProcessor::PcloudProcessor(ros::NodeHandle &nh) : viewer_(new pcl::visuali
     pubObstacleCloud_ = nh.advertise<sensor_msgs::PointCloud2>("/os_cloud_node/obstacle_cloud", 1);
     pubPlaneCloud_ = nh.advertise<sensor_msgs::PointCloud2>("/os_cloud_node/road_cloud", 1);
 
+    std::vector<int> myList(3);
+    nh.getParam("/minROIRange", myList);
+    minROIRange = Eigen::Vector4f(myList[0], myList[1], myList[2], 1);
+    nh.getParam("/maxROIRange", myList);
+    maxROIRange = Eigen::Vector4f(myList[0], myList[1], myList[2], 1);
+    nh.getParam("/leafSize", leafSize);
+    nh.getParam("/visualise", visualise);
 
-    minROIRange = Eigen::Vector4f(-10, -6, -1, 1);
-    maxROIRange = Eigen::Vector4f(15, 5, 3, 1);
-    leafSize = 0.1;
-    visualise = true;
-    ransParam.lidar_height = 0.9;
-    ransParam.ground_clearance = 0.4;
-    ransParam.robot_length = 0.6;
-    ransParam.robot_width = 0.8;
-    ransParam.minRandSearchRange = Eigen::Vector4f(-2, -4, -1, 1);
-    ransParam.maxRandSearchRange = Eigen::Vector4f(3, 5, 1, 1);
-    ransParam.maxIterations = 150;
-    ransParam.distanceThreshold = 0.15;
-    clustParam.clusterTolerance = 0.3;
-    clustParam.minClustersize = 50;
-    clustParam.maxClustersize = 5000;
+    nh.getParam("ransParam/lidar_height", ransParam.lidar_height);
+    nh.getParam("ransParam/ground_clearance", ransParam.ground_clearance);
+    nh.getParam("ransParam/robot_length", ransParam.robot_length);
+    nh.getParam("ransParam/robot_width", ransParam.robot_width);
+    nh.getParam("ransParam/minRandSearchRange", myList);
+    ransParam.minRandSearchRange = Eigen::Vector4f(myList[0], myList[1], myList[2], 1);
+    nh.getParam("ransParam/maxRandSearchRange", myList);
+    ransParam.maxRandSearchRange = Eigen::Vector4f(myList[0], myList[1], myList[2], 1);
+    nh.getParam("ransParam/maxIterations", ransParam.maxIterations);
+    nh.getParam("ransParam/distanceThreshold", ransParam.distanceThreshold);
 
+    nh.getParam("clustParam/clusterTolerance", clustParam.clusterTolerance);
+    nh.getParam("clustParam/minClustersize", clustParam.minClustersize);
+    nh.getParam("clustParam/maxClustersize", clustParam.maxClustersize);
     ROS_INFO("Initialization done");
 }
 
@@ -51,7 +56,6 @@ void PcloudProcessor::cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg
     std::vector<PointXYZI::Ptr> cloudClusters;
     pcore_.Clustering(pair_cloud.first, cloudClusters, clustParam);
 
-
     int clusterID{};
     int cluster_size = 0;
     std::vector<Color> colors{Color(1, 0, 0), Color(1, 0, 1), Color(0, 0, 1)};
@@ -66,7 +70,7 @@ void PcloudProcessor::cloud_cb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg
 
     for (PointXYZI::Ptr cluster : cloudClusters)
     {
-        
+
         Box box = BoundingBox(cluster);
         ++clusterID;
 
